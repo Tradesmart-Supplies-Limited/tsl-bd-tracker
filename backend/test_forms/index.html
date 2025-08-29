@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Team Member Birthday API</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+
+<body class="bg-light">
+
+    <div class="container py-5">
+        <h2 class="mb-4 text-center">Team Member Birthday Manager</h2>
+
+        <!-- Add Member Form -->
+        <div class="card p-4 mb-5 shadow-sm">
+            <h5>Add New Member</h5>
+            <form id="memberForm" enctype="multipart/form-data">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <input type="text" class="form-control" name="name" placeholder="Full Name" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <input type="email" class="form-control" name="email" placeholder="Email" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <input type="date" class="form-control" name="dob" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <input type="text" class="form-control" name="department" placeholder="Department">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <input type="text" class="form-control" name="branch" placeholder="Branch">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <input type="file" class="form-control" name="picture">
+                    </div>
+                </div>
+                <button class="btn btn-primary" type="submit">Save Member</button>
+            </form>
+        </div>
+
+        <!-- Members Table -->
+        <div class="card p-4 shadow-sm">
+            <h5>All Members</h5>
+            <table class="table table-bordered mt-3" id="membersTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Picture</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>DOB</th>
+                        <th>Department</th>
+                        <th>Branch</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Edit Member Modal -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="editForm" enctype="multipart/form-data">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Member</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="editId">
+                        <div class="mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text" id="editName" class="form-control" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" id="editEmail" class="form-control" name="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">DOB</label>
+                            <input type="date" id="editDob" class="form-control" name="dob" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Department</label>
+                            <input type="text" id="editDepartment" class="form-control" name="department">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Branch</label>
+                            <input type="text" id="editBranch" class="form-control" name="branch">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Profile Picture</label><br>
+                            <img id="editPreview" src="" alt="Current Picture" width="80" class="mb-2 d-block">
+                            <input type="file" id="editPicture" name="picture" class="form-control">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script>
+        const API_URL = "http://localhost/tsl-bd-tracker/backend/api/index.php";
+
+        // Load members
+        async function loadMembers() {
+            const res = await fetch(API_URL + "/view-all");
+            const members = await res.json();
+            const tbody = document.querySelector("#membersTable tbody");
+            tbody.innerHTML = "";
+            members.forEach(m => {
+                tbody.innerHTML += `
+                <tr>
+                    <td>${m.id}</td>
+                    <td>${m.picture ? `<img src="${m.picture}" width="50">` : "—"}</td>
+                    <td>${m.member_name}</td>
+                    <td>${m.email}</td>
+                    <td>${m.dob}</td>
+                    <td>${m.department}</td>
+                    <td>${m.branch}</td>
+                    <td>
+                    <button class="btn btn-sm btn-warning" onclick="editMember(${m.id})">Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteMember(${m.id})">Delete</button>
+                    </td>
+                </tr>
+                `;
+            });
+        }
+
+        // Create member
+        document.querySelector("#memberForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const res = await fetch(API_URL + "/create", {
+                method: "POST",
+                body: formData
+            });
+            const data = await res.json();
+            alert(data.message || data.error);
+            e.target.reset();
+            loadMembers();
+        });
+
+        // Delete member
+        async function deleteMember(id) {
+            if (!confirm("Are you sure you want to delete this member?")) return;
+            const res = await fetch(API_URL + "/delete/" + id, { method: "DELETE" });
+            const data = await res.json();
+            alert(data.message || data.error);
+            loadMembers();
+        }
+
+        let editModal; // will hold Bootstrap modal instance
+
+        // Load Bootstrap modal instance when page loads
+        document.addEventListener("DOMContentLoaded", () => {
+            editModal = new bootstrap.Modal(document.getElementById("editModal"));
+        });
+
+// Open modal and prefill fields
+async function editMember(id) {
+  const res = await fetch(API_URL + "/edit/" + id);
+  const m = await res.json();
+  if (m.error) { alert(m.error); return; }
+
+  document.getElementById("editId").value = m.id;
+  document.getElementById("editName").value = m.member_name;
+  document.getElementById("editEmail").value = m.email;
+  document.getElementById("editDob").value = m.dob;
+  document.getElementById("editDepartment").value = m.department;
+  document.getElementById("editBranch").value = m.branch;
+  document.getElementById("editPreview").src = m.picture ? m.picture : "";
+
+  editModal.show();
+}
+
+// Handle update form submission
+document.getElementById("editForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const id = document.getElementById("editId").value;
+  const formData = new FormData();
+  formData.append("name", document.getElementById("editName").value);
+  formData.append("email", document.getElementById("editEmail").value);
+  formData.append("dob", document.getElementById("editDob").value);
+  formData.append("department", document.getElementById("editDepartment").value);
+  formData.append("branch", document.getElementById("editBranch").value);
+
+  // if new picture chosen, add it
+  const picFile = document.getElementById("editPicture").files[0];
+  if (picFile) {
+    formData.append("picture", picFile);
+  }
+
+  const res = await fetch(API_URL + "/update/" + id, {
+    method: "POST", // 👈 use POST for file upload
+    body: formData
+  });
+
+  const data = await res.json();
+  alert(data.message || data.error);
+
+  editModal.hide();
+  loadMembers();
+});
+
+        // Load on page ready
+        loadMembers();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+
+</html>

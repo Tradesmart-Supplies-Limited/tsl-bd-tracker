@@ -1,0 +1,42 @@
+body {
+    background-color: #f8f9fa;
+}
+
+.card {
+    border-radius: 0.5rem;
+}
+
+.card-header {
+    border-bottom: 2px solid #007bff;
+}
+
+.table th, .table td {
+    vertical-align: middle;
+}
+
+.table img {
+    width: 50px;
+    height: 50px;
+}
+
+.btn {
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.btn:hover {
+    opacity: 0.8;
+}
+
+#search {
+    border-radius: 0.5rem;
+}
+
+.table-responsive {
+    margin-top: 20px;
+}
+
+@media (max-width: 768px) {
+    .card-header h4 {
+        font-size: 1.2rem;
+    }
+}

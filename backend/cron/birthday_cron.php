@@ -14,7 +14,7 @@ $management = [
     "andrew@tradesmartzm.com",
     "hr@tradesmartzm.com",
     "it.officer@tradesmartzm.com",
-    "bupo@tradesmartzm.com"
+    "bupe@tradesmartzm.com"
 ];
 
 // --- Helper: Send Email (disabled by default) ---
@@ -61,9 +61,18 @@ $result = $stmt->get_result();
 if ($result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
         $subject = "Happy Birthday, {$row['member_name']}!";
-        $message = "<h3>Happy Birthday!</h3>
-            <p>Dear {$row['member_name']},<br>Wishing you a wonderful birthday from the team!</p>";
-        $headers = "MIME-Version: 1.0\r\nContent-type:text/html;charset=UTF-8\r\nFrom: no-reply@tradesmartzm.com\r\n";
+        $message = '
+            <div style="font-family: Arial, sans-serif; background: #f8f9fa; padding: 20px; border-radius: 8px;">
+                <h2 style="color: #007bff;">🎉 Happy Birthday!</h2>
+                <p>Dear <strong>' . htmlspecialchars($row['member_name']) . '</strong>,</p>
+                <p>Wishing you a wonderful birthday and a fantastic year ahead!</p>
+                <hr>
+                <p style="font-size: 12px; color: #888;">Best wishes,<br>Tradesmart Team</p>
+            </div>
+        ';
+        $headers = "MIME-Version: 1.0\r\n";
+        $headers .= "Content-type:text/html;charset=UTF-8\r\n";
+        $headers .= "From: no-reply@tradesmartzm.com\r\n";
         sendEmail($row['email'], $subject, $message, $headers);
         $wish_log .= "Birthday wish sent to {$row['member_name']} ({$row['email']})\n";
     }

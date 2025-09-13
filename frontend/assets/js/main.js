@@ -2,8 +2,6 @@ document.addEventListener("DOMContentLoaded", function () {
     // Load members for dashboard
     if (document.getElementById("birthdayList")) {
         loadMembers();
-
-        // Search functionality
         document.getElementById("search").addEventListener("input", function () {
             loadMembers(this.value);
         });
@@ -21,17 +19,15 @@ document.addEventListener("DOMContentLoaded", function () {
             })
                 .then((res) => res.json())
                 .then((data) => {
-                    const alertDiv = document.getElementById("formAlert");
                     if (data.message) {
-                        alertDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                        Swal.fire('Success!', data.message, 'success');
                         form.reset();
                     } else {
-                        alertDiv.innerHTML = `<div class="alert alert-danger">${data.error || "Error occurred"}</div>`;
+                        Swal.fire('Error!', data.error || "Error occurred", 'error');
                     }
                 })
                 .catch(() => {
-                    document.getElementById("formAlert").innerHTML =
-                        `<div class="alert alert-danger">Network error</div>`;
+                    Swal.fire('Error!', 'Network error', 'error');
                 });
         });
     }
@@ -61,7 +57,7 @@ function loadMembers(search = "") {
                             <td>${m.department}</td>
                             <td>${m.branch}</td>
                             <td>
-                                <button class="btn btn-danger btn-sm" onclick="deleteMember(${m.id})">Delete</button>
+                                <button class="btn btn-danger btn-sm" onclick="confirmDelete(${m.id})">Delete</button>
                             </td>
                         </tr>
                     `;
@@ -69,19 +65,32 @@ function loadMembers(search = "") {
         });
 }
 
+// SweetAlert delete confirmation
+function confirmDelete(id) {
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "This will delete the record.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, delete it!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            deleteMember(id);
+        }
+    });
+}
+
 // Delete member
 function deleteMember(id) {
-    if (!confirm("Are you sure you want to delete this record?")) return;
     fetch(`../backend/api/index.php/delete/${id}`, {
         method: "DELETE",
     })
         .then((res) => res.json())
         .then((data) => {
-            const alertDiv = document.getElementById("dashboardAlert");
             if (data.message) {
-                alertDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                Swal.fire('Deleted!', data.message, 'success');
             } else {
-                alertDiv.innerHTML = `<div class="alert alert-danger">${data.error || "Error occurred"}</div>`;
+                Swal.fire('Error!', data.error || "Error occurred", 'error');
             }
             loadMembers();
         });

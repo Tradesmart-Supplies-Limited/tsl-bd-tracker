@@ -57,7 +57,12 @@ function loadMembers(search = "") {
                             <td>${m.department}</td>
                             <td>${m.branch}</td>
                             <td>
-                                <button class="btn btn-danger btn-sm" onclick="confirmDelete(${m.id})">Delete</button>
+                              <button class="btn btn-sm btn-warning" onclick="editMember(${m.id})">
+                                <i class="bi bi-pencil-square"></i> Edit
+                              </button>
+                              <button class="btn btn-sm btn-outline-danger" onclick="deleteMember(${m.id})" title="Delete">
+                                <i class="bi bi-trash"></i>
+                              </button>
                             </td>
                         </tr>
                     `;
@@ -94,4 +99,9 @@ function deleteMember(id) {
             }
             loadMembers();
         });
+}
+
+// Edit member
+function editMember(id) {
+    window.location.href = `edit.html?id=${id}`;
 }

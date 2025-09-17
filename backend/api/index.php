@@ -1,4 +1,7 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 // Database connection
 $host = "localhost";
 $user = "root";
@@ -11,16 +14,68 @@ if ($conn->connect_error) {
     die(json_encode(["error" => "Database connection failed."]));
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && empty($_SERVER['PATH_INFO'])) {
-    echo json_encode(["message" => "API is running"]);
-    exit;
-}
-
 // Allow CORS & JSON response
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE");
 header("Access-Control-Allow-Headers: Content-Type");
+
+// Handle ?action=view&id=...
+if (isset($_GET['action']) && $_GET['action'] === 'view' && isset($_GET['id'])) {
+    $id = intval($_GET['id']);
+    $result = $conn->query("SELECT * FROM members WHERE id=$id");
+    echo json_encode($result->fetch_assoc() ?: ["error" => "Member not found"]);
+    exit;
+}
+
+// Handle ?action=update&id=...
+if (
+    isset($_GET['action']) && $_GET['action'] === 'update' &&
+    isset($_GET['id']) && $_SERVER['REQUEST_METHOD'] === 'POST'
+) {
+    $id = intval($_GET['id']);
+    $name = $_POST['name'] ?? '';
+    $email = $_POST['email'] ?? '';
+    $dob = $_POST['dob'] ?? '';
+    $department = $_POST['department'] ?? '';
+    $branch = $_POST['branch'] ?? '';
+
+    // Handle picture upload
+    $picturePath = null;
+    if (isset($_FILES['picture']) && $_FILES['picture']['error'] === 0) {
+        $targetDir = "uploads/";
+        if (!is_dir($targetDir)) mkdir($targetDir, 0777, true);
+        $picturePath = $targetDir . time() . "_" . basename($_FILES["picture"]["name"]);
+        if (!move_uploaded_file($_FILES["picture"]["tmp_name"], $picturePath)) {
+            http_response_code(400);
+            echo json_encode(["error" => "Failed to upload picture"]);
+            exit;
+        }
+    }
+
+    // Build SQL
+    $sql = "UPDATE members SET member_name=?, email=?, dob=?, department=?, branch=?";
+    $params = [$name, $email, $dob, $department, $branch];
+    if ($picturePath) {
+        $sql .= ", picture=?";
+        $params[] = $picturePath;
+    }
+    $sql .= " WHERE id=?";
+    $params[] = $id;
+
+    // Prepare and execute
+    $stmt = $conn->prepare($sql);
+    $types = str_repeat('s', count($params) - 1) . 'i';
+    $stmt->bind_param($types, ...$params);
+
+    if ($stmt->execute()) {
+        echo json_encode(["success" => true]);
+    } else {
+        http_response_code(500);
+        echo json_encode(["error" => "Failed to update member"]);
+    }
+    exit;
+}
 
 // Helper: parse request
 $method = $_SERVER['REQUEST_METHOD'];
@@ -45,11 +100,11 @@ switch ($endpoint) {
             exit;
         }
 
-        $name = $_POST['name'];
-        $email = $_POST['email'];
-        $dob = $_POST['dob'];
-        $department = $_POST['department'];
-        $branch = $_POST['branch'];
+        $name = $_POST['name'] ?? '';
+        $email = $_POST['email'] ?? '';
+        $dob = $_POST['dob'] ?? '';
+        $department = $_POST['department'] ?? '';
+        $branch = $_POST['branch'] ?? '';
 
         // Handle picture upload
         $picturePath = null;
@@ -57,7 +112,11 @@ switch ($endpoint) {
             $targetDir = "uploads/";
             if (!is_dir($targetDir)) mkdir($targetDir, 0777, true);
             $picturePath = $targetDir . time() . "_" . basename($_FILES["picture"]["name"]);
-            move_uploaded_file($_FILES["picture"]["tmp_name"], $picturePath);
+            if (!move_uploaded_file($_FILES["picture"]["tmp_name"], $picturePath)) {
+                http_response_code(400);
+                echo json_encode(["error" => "Failed to upload picture"]);
+                exit;
+            }
         }
 
         $stmt = $conn->prepare("INSERT INTO members (member_name, email, dob, department, branch, picture) VALUES (?, ?, ?, ?, ?, ?)");
@@ -100,18 +159,22 @@ switch ($endpoint) {
             echo json_encode(["message" => $ok ? "Member updated" : $stmt->error]);
         } elseif ($method === "POST") {
             // Handle file + form update
-            $name = $_POST['name'];
-            $email = $_POST['email'];
-            $dob = $_POST['dob'];
-            $department = $_POST['department'];
-            $branch = $_POST['branch'];
+            $name = $_POST['name'] ?? '';
+            $email = $_POST['email'] ?? '';
+            $dob = $_POST['dob'] ?? '';
+            $department = $_POST['department'] ?? '';
+            $branch = $_POST['branch'] ?? '';
 
             $picturePath = null;
             if (isset($_FILES['picture']) && $_FILES['picture']['error'] === 0) {
                 $targetDir = "uploads/";
                 if (!is_dir($targetDir)) mkdir($targetDir, 0777, true);
                 $picturePath = $targetDir . time() . "_" . basename($_FILES["picture"]["name"]);
-                move_uploaded_file($_FILES["picture"]["tmp_name"], $picturePath);
+                if (!move_uploaded_file($_FILES["picture"]["tmp_name"], $picturePath)) {
+                    http_response_code(400);
+                    echo json_encode(["error" => "Failed to upload picture"]);
+                    exit;
+                }
 
                 $stmt = $conn->prepare("UPDATE members SET member_name=?, email=?, dob=?, department=?, branch=?, picture=? WHERE id=?");
                 $stmt->bind_param("ssssssi", $name, $email, $dob, $department, $branch, $picturePath, $id);
@@ -163,7 +226,6 @@ switch ($endpoint) {
             echo json_encode(["error" => $stmt->error]);
         }
         break;
-
 
     default:
         echo json_encode(["error" => "Invalid endpoint"]);

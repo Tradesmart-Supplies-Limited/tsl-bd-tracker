@@ -1,13 +1,8 @@
 <?php
-$host = "localhost";
-$user = "root";
-$pass = "";
-$db   = "tsl_bd_tracker";
+require dirname(__DIR__) . '/vendor/autoload.php';
 
-$conn = new mysqli($host, $user, $pass, $db);
-if ($conn->connect_error) {
-    die("DB connection failed");
-}
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 // Management emails
 $management_emails = [
@@ -18,28 +13,56 @@ $management_emails = [
     "bupe@tradesmartzm.com"
 ];
 
-// Get the date 3 days from now
-$three_days = date('m-d', strtotime('+3 days'));
+// Database connection
+$host = "localhost";
+$user = "root";
+$pass = "";
+$db   = "tsl_bd_tracker";
+$conn = new mysqli($host, $user, $pass, $db);
+if ($conn->connect_error) {
+    die("DB connection failed");
+}
 
-// Query for birthdays in 3 days (ignoring year)
-$sql = "SELECT member_name, email, dob FROM members WHERE DATE_FORMAT(dob, '%m-%d') = ?";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("s", $three_days);
-$stmt->execute();
-$result = $stmt->get_result();
-
-$subject = "Upcoming Birthdays in 3 Days";
+$subject = "Upcoming Birthdays Reminder";
 $body = "";
 
-while ($row = $result->fetch_assoc()) {
-    $body .= "{$row['member_name']} ({$row['email']}) has a birthday on " . date('F j', strtotime($row['dob'])) . ".\n";
+for ($days = 3; $days >= 1; $days--) {
+    $target_date = date('m-d', strtotime("+$days days"));
+    $sql = "SELECT member_name, email, dob FROM members WHERE DATE_FORMAT(dob, '%m-%d') = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("s", $target_date);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    while ($row = $result->fetch_assoc()) {
+        $body .= "{$row['member_name']} ({$row['email']}) has a birthday in $days day" . ($days > 1 ? "s" : "") . " (" . date('F j', strtotime($row['dob'])) . ").\n";
+    }
 }
 
 if ($body) {
-    foreach ($management_emails as $to) {
-        mail($to, $subject, $body);
+    $mail = new PHPMailer(true);
+    try {
+        $mail->isSMTP();
+        $mail->Host = 'smtp.tradesmartzm.com';
+        $mail->SMTPAuth = true;
+        $mail->Username = 'YOUR_SMTP_USERNAME'; // <-- your SMTP username
+        $mail->Password = 'YOUR_SMTP_PASSWORD'; // <-- your SMTP password
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        $mail->Port = 465;
+        $mail->setFrom('YOUR_FROM_ADDRESS', 'T.S.L Birthday Tracker');
+
+        foreach ($management_emails as $to) {
+            $mail->addAddress($to);
+        }
+
+        $mail->Subject = $subject;
+        $mail->Body    = $body;
+
+        $mail->send();
+        echo 'Reminder sent to management.';
+    } catch (Exception $e) {
+        echo "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
     }
-    echo "Reminder sent to management.";
 } else {
-    echo "No birthdays in 3 days.";
+    echo "No birthdays in the next 3 days.";
 }
